@@ -1,260 +1,219 @@
-# SimulatrixMV
+# SynDRA-Gen
 
-SimulatrixMV is an Unreal Engine 5.4 project for building railway capture runs and generating synthetic RGB, LiDAR, and pedestrian-bounding-box data from a configurable in-game menu.
+SynDRA-Gen is an Unreal Engine 5.4 application for generating synthetic railway-scene data, including RGB images, depth maps, semantic segmentation masks, LiDAR point clouds, and pedestrian bounding-box annotations.
+
+## Download
+
+The packaged application content is large, so the distributable `Content` bundle is hosted separately.
+
+- Application package and large content download from MEGA: [https://mega.nz/folder/RXkB2JQL#s_Z2oO9QKNU-y2Wf2EaiCA]
+
+When the MEGA package is available, place the downloaded SimulatrixMV folder in the packaged-application location before running SynDRA-Gen.
 
 ## Overview
 
-The current workflow is driven by `ASimpleCameraCaptureManager` and its runtime `Acquisition Setup` menu.
+The current runtime workflow is driven by `ASimpleCameraCaptureManager` and its in-game `Acquisition Setup` menu. The application lets the user configure the scene before capture starts, apply the configuration, and then launch a deterministic acquisition run.
 
-From that menu, the user can:
+At the moment, the implemented runtime configuration covers:
 
-- Toggle fog and night modes
-- Configure RGB camera rig type, count, FOV, resolution, and mounting offsets
-- Choose forest mesh family and randomization seeds
-- Set a pedestrian seed
-- Choose ballast mesh, terrain mesh, and ballast rotation seed
-- Select the active rail and train speed
-- Enable either flash LiDAR, beams LiDAR, or no LiDAR
-- Adjust LiDAR mount offsets and presets
-- Apply the configuration before starting capture
-- Start the run only after configuration is ready
+- Weather and lighting toggles
+- RGB camera rig selection and placement
+- Optional depth-image generation
+- Optional semantic-segmentation generation
+- Forest mesh family and random seeds
+- Pedestrian seed
+- Railway surface mesh choices and ballast seed
+- Train rail selection and train speed
+- Optional flash or beams LiDAR
+- LiDAR mounting offsets and presets
+- Bounding-box generation
 
-The manager also exposes Blueprint hooks so level-specific setup can happen during configuration and right when the run starts.
+## Customization
 
-## Current Menu Parameters
+SynDRA-Gen is designed around a small set of scenario-customization groups.
 
-The runtime menu is divided into the following sections.
+### Currently available in the runtime menu
 
-### Weather
+- `Weather and lighting`: fog and night toggles
+- `Cameras`: mono or stereo setup, camera count, resolution preset, FOV, and mounting offsets
+- `Outputs`: depth-image generation, semantic-segmentation generation, and bounding-box generation
+- `Forest`: mesh family plus tree, lower-tree, and grass seeds
+- `Pedestrians`: pedestrian seed
+- `Railway`: ballast mesh, terrain mesh, and ballast rotation seed
+- `Train dynamics`: travel rail and train speed
+- `LiDAR`: none, flash, or beams; beams count; flash preset; mount offsets
 
-Available controls:
+## Runtime workflow
 
-- `Fog`: `On` or `Off`
-- `Night`: `On` or `Off`
+For the end user, SynDRA-Gen is intended to work as an application loop:
 
-Behavior notes:
+1. Open the application.
+2. Configure the scene and sensor setup in the `Acquisition Setup` menu.
+3. Press `Apply Configuration`.
+4. Wait until the configuration status reports ready.
+5. Press `Start Acquisition`.
+6. Let the run finish and save the generated data.
+7. Return to the configuration menu, change the scenario settings, and start a new acquisition run again.
 
-- Fog and night can both be switched on or off from the runtime menu
-- If `Fog` is set to `On`, the `Night` toggle is ignored
-- In the current menu behavior, enabling `Fog` disables `Night`
+During a run (not during configuration) it is possible to press ESC to close the application or return to the configuration menu.
 
-### Cameras
+## Current outputs
 
-Available controls:
+Captured data is written under:
 
-- `Camera Rig`: `Mono` or `Stereo`
-- `Mono Camera Count`: `1` or `2` when `Mono` is selected
-- `Camera Resolution`: `1K` or `2K`
-- `Camera FOV`: `30`, `90`, or `120`
-- `Single Camera Y Offset`
-- `Left Camera Y Offset`
-- `Right Camera Y Offset`
-- `Camera Z Offset`
-- `Camera Pitch`
-- `Left Camera Yaw`
-- `Right Camera Yaw`
+- `Saved/DataAcquired/<timestamp>/`
 
-Behavior notes:
+Typical per-sensor folders are:
 
-- `Mono` with count `1` creates one RGB camera
-- `Mono` with count `2` creates two RGB cameras
-- `Stereo` creates left and right RGB cameras
-- Offset and yaw rows are shown or hidden automatically based on the selected rig
+- `RGBCamera_Check`, `RGBCamera_Left`, `RGBCamera_Right`
+- `DepthCamera_Check`, `DepthCamera_Left`, `DepthCamera_Right`
+- `SSCamera_Check`, `SSCamera_Left`, `SSCamera_Right`
+- `FlashLidar_Check`
+- `BeamsStackLidar_Check`
 
-### Forest
+### Camera folder structure
 
-Available controls:
-
-- `Forest Mesh Group`: `0`, `1`, `2`
-- `Forest Tree Seed`
-- `Forest Lower Tree Seed`
-- `Forest Grass Seed`
-
-Mesh group mapping:
-
-- `0`: Black Alder
-- `1`: European Hornbeam
-- `2`: European Beech
-
-These values are applied during configuration. The manager currently logs them and is ready to forward them into the forest PCG or Blueprint setup.
-
-### Pedestrian
-
-Available controls:
-
-- `Pedestrian Seed`
-
-Current behavior:
-
-- The seed is stored in the manager and included in the applied configuration
-- The manager currently logs this value and is ready to forward it into a pedestrian spawn system or Blueprint hook
-
-### Railway Surface
-
-Available controls:
-
-- `Ballast Mesh`: `0` to `5`
-- `Terrain Mesh`: `0` to `5`
-- `Ballast Rotation Seed`
-
-These values are applied during configuration and are intended to drive ballast and surrounding-terrain scene setup.
-
-### Train Dynamics
-
-Available controls:
-
-- `Travel Rail`: index of the selected spline in `TravelRails`
-- `Train Speed`: `5`, `10`, `20`, `30`
-
-Additional train settings currently remain in the manager Details panel rather than the runtime menu:
-
-- `TrainApproachDurationSeconds`
-- `TrainStopOffsetCm`
-- `TrainBrakingDecelerationCmPerSecondSq`
-- `TravelRails`
-
-### Lidar
-
-Available controls:
-
-- `Lidar Type`: `None`, `Flash`, `Beams`
-- `Beam Count`: `16`, `32`, `64` when `Beams` is selected
-- `Flash Preset`: `ifm O3D-like`, `SICK Visionary-T Mini-like`, `Basler blaze-101-like` when `Flash` is selected
-- `Lidar Y Offset`
-- `Lidar Z Offset`
-- `Lidar Pitch`
-
-Behavior notes:
-
-- LiDAR mount rows are hidden when `Lidar Type` is `None`
-- Only the controls relevant to the selected LiDAR type are shown
-
-## Required Level Setup
-
-Before pressing Play, the level still needs a few scene references prepared in the editor.
-
-### SimpleCameraCaptureManager
-
-Place one `SimpleCameraCaptureManager` actor in the level.
-
-Its placed transform matters:
-
-- The manager transform is the train's fixed pre-start location
-- When the run begins, the train first moves from that placed transform to the start of the active rail
-
-### Travel Rails
-
-The runtime menu selects a rail by index, but the spline references must already be assigned in the actor Details panel.
-
-Current workflow:
-
-1. Place the spline Blueprint actors in the level.
-2. Select the placed `SimpleCameraCaptureManager`.
-3. In the Details panel, populate `TravelRails`.
-4. For each entry, assign the actual `SplineComponent` from a spline actor placed in the current map.
-5. Use the menu's `Travel Rail` value to choose which assigned spline is used for the run.
-
-Important notes:
-
-- Rail splines are not auto-discovered from the level
-- `TravelRails` must reference placed spline components, not Blueprint class assets
-- If `TravelRails` is empty or the selected index is invalid, train setup is skipped
-
-## Runtime Workflow
-
-Recommended end-to-end workflow:
-
-1. Open the target level.
-2. Place and configure the `SimpleCameraCaptureManager`.
-3. Assign `TravelRails` in the manager Details panel.
-4. Set any non-menu manager properties you need, such as `TrainApproachDurationSeconds`.
-5. Press `Play` in Unreal.
-6. In the `Acquisition Setup` menu, adjust the parameters for cameras, forest, pedestrian, railway surface, train dynamics, and LiDAR.
-7. Press `Apply Configuration`.
-8. Wait until the status reports that the configuration is ready.
-9. Press `Start Acquisition`.
-
-## Runtime Sequence
-
-After the user presses `Start Acquisition`, the system currently behaves as follows:
-
-1. The manager starts the configured acquisition.
-2. The Blueprint event `OnRunPlayPressed` is fired immediately after the menu start action.
-3. Input returns to game mode and the configuration widget closes.
-4. The train moves from the manager's placed transform to distance `0` of the selected rail.
-5. Warmup runs for the configured `WarmupFrames` and `WarmupSeconds`.
-6. The first saved frame is captured at rail distance `0`.
-7. The train advances along the rail at the configured speed until the stop point is reached.
-
-This `OnRunPlayPressed` event is the intended hook for starting pedestrian movement only when the actual run begins.
-
-## Blueprint Hooks
-
-`ASimpleCameraCaptureManager` currently exposes two Blueprint events for integration:
-
-- `OnBlueprintSceneSetupRequested`
-  Use this when `bUseBlueprintSceneSetupHook` is enabled and you want Blueprint logic to apply scene changes during the configuration phase.
-
-- `OnRunPlayPressed`
-  Use this to trigger run-start logic exactly when the player presses `Start Acquisition`, for example starting pedestrian movement.
-
-## Current Outputs
-
-The manager currently creates output under `Saved/CameraCheck/<timestamp>/`.
-
-Current capture outputs include:
-
-- RGB camera folders for the active camera setup
-- LiDAR folders for the active LiDAR setup
-- Per-camera pedestrian bounding box CSV files in each camera's `BBoxes` folder
-
-Current camera folder structure:
+Each camera folder can contain:
 
 - `Bin_folder`
 - `Poses`
 - `Times`
 - `BBoxes`
 
-Current LiDAR folder structure:
+### LiDAR folder structure
+
+Each LiDAR folder can contain:
 
 - `Bin_folder`
 - `Poses`
 - `Times`
+- `BBoxes`
 
-## Current Limitations
+## Binary export formats
 
-The README now reflects the features implemented in code today. A few older design ideas are not yet exposed in the menu or fully wired.
+The helper script in `Helper/syndra_dataset_tools.py` is based on the actual writer implementation in this project.
 
-Notable current limitations:
+### RGB images
 
-- Pedestrian configuration in the menu currently includes only `Pedestrian Seed`
-- Vehicle configuration is not currently exposed in the runtime menu
-- Label configuration is not currently exposed in the runtime menu
-- Forest, pedestrian, ballast, and terrain settings are currently logged and prepared for Blueprint or PCG integration rather than being fully driven by built-in runtime systems
-- `TrainApproachDurationSeconds`, `TrainStopOffsetCm`, and `TrainBrakingDecelerationCmPerSecondSq` are not yet exposed in the runtime menu
-- The README does not cover installation or packaging yet
+- File location: `<camera>/Bin_folder/frame_XXXXXX.bin`
+- Format: `width * height * 3` bytes
+- Channel order: `B`, `G`, `R`
 
-## Troubleshooting
+### Depth images
 
-- `Start Acquisition` appears disabled or does nothing
-  Press `Apply Configuration` first and wait for the menu to report that the configuration is ready.
+- File location: `<depth-camera>/Bin_folder/frame_XXXXXX.bin`
+- Format: `width * height * 2` bytes
+- Stored from Unreal render channels as `G`, `R`
+- The helper script reconstructs these as a 16-bit grayscale PNG
 
-- The train does not move
-  Check that `TravelRails` contains valid spline component references from actors placed in the current level, and verify that the selected `Travel Rail` index is valid.
+### Semantic segmentation images
 
-- The train starts in the wrong location before approaching the rail
-  Move the placed `SimpleCameraCaptureManager` actor to the desired pre-start position in the level.
+- File location: `<ss-camera>/Bin_folder/frame_XXXXXX.bin`
+- Format: `width * height` bytes
+- One label byte per pixel
 
-- Pedestrians start moving too early
-  Trigger pedestrian movement from the manager Blueprint event `OnRunPlayPressed` rather than from configuration-apply logic.
+### LiDAR point clouds
 
-## Tech Stack
+- File location: `<lidar>/Bin_folder/frame_XXXXXX.bin`
+- Format: one point every 6 `float32` values
+- Stored fields: `x`, `y`, `z`, `class_id`, `channel`, `timestamp`
+- Coordinates are exported in meters
+
+### Camera bounding boxes
+
+- File location: `<camera>/BBoxes/frame_XXXXXX.csv`
+- Contains 2D image coordinates plus 3D box metadata
+
+Current CSV header:
+
+- `label,label_id,actor,min_x,min_y,max_x,max_y,touches_boundary,center_x_m,center_y_m,center_z_m,extent_x_m,extent_y_m,extent_z_m,rot_pitch_deg,rot_yaw_deg,rot_roll_deg,timestamp_s`
+
+### LiDAR bounding boxes
+
+- File location: `<lidar>/BBoxes/frame_XXXXXX.txt`
+- Each row stores timestamp, label id, actor name, and the 8 box corners in LiDAR sensor coordinates
+
+## Python post-processing
+
+Use [Helper/syndra_dataset_tools.py](/c:/Users/g.damico/Documents/UnrealProjects/SimulatrixMV/Helper/syndra_dataset_tools.py) to convert and visualize exported data.
+
+Supported tasks:
+
+- Convert RGB, depth, or segmentation `.bin` images to `.png`
+- Convert LiDAR `.bin` point clouds to `.pcd`
+- Render a front-view image from a LiDAR `.bin` point cloud
+- Overlay camera bounding boxes on camera images
+- Overlay LiDAR 3D bounding boxes on a point-cloud front-view image
+
+### Requirements
+
+- Python 3
+- `numpy`
+- `Pillow`
+
+Example install:
+
+```bash
+pip install numpy pillow
+```
+
+### Example commands
+
+Convert one depth frame to PNG:
+
+```bash
+python Helper/syndra_dataset_tools.py image-bin-to-png Saved/DataAcquired/<timestamp>/DepthCamera_Check/Bin_folder/frame_000000.bin --image-type depth --width 1280 --height 960
+```
+
+Convert one segmentation frame to PNG:
+
+```bash
+python Helper/syndra_dataset_tools.py image-bin-to-png Saved/DataAcquired/<timestamp>/SSCamera_Check/Bin_folder/frame_000000.bin --image-type segmentation --width 1280 --height 960
+```
+
+Convert one LiDAR frame to PCD:
+
+```bash
+python Helper/syndra_dataset_tools.py pointcloud-bin-to-pcd Saved/DataAcquired/<timestamp>/BeamsStackLidar_Check/Bin_folder/frame_000000.bin
+```
+
+Create a front-view image from a LiDAR frame:
+
+```bash
+python Helper/syndra_dataset_tools.py pointcloud-front-view Saved/DataAcquired/<timestamp>/BeamsStackLidar_Check/Bin_folder/frame_000000.bin
+```
+
+Overlay camera bounding boxes:
+
+```bash
+python Helper/syndra_dataset_tools.py overlay-image-bboxes Saved/DataAcquired/<timestamp>/RGBCamera_Check --width 1280 --height 960 --frame 0
+```
+
+Overlay LiDAR bounding boxes on the point-cloud front view:
+
+```bash
+python Helper/syndra_dataset_tools.py overlay-pointcloud-bboxes Saved/DataAcquired/<timestamp>/BeamsStackLidar_Check --frame 0
+```
+
+## Tech stack
 
 - Unreal Engine `5.4`
 - C++
 - Blueprint
 - PCG
 
+## Reference Machine
+
+- Windows 11 operating system and Unreal Engine 5.4
+- CPU: 13th Gen Intel(R) Core(TM) i9-13900K CPU (3.00 GHz)
+- GPU: NVIDIA GeForce RTX 5080 GPU with 16 GB of dedicated memory
+- RAM: 64 GB
+
 ## License
 
-License information has not been added yet.
+Following the existing SynDRA and SynDRA-BBox project licensse, the dataset outputs distributed with SynDRA-Gen are intended to use:
+
+- `Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)`
+
+License reference:
+- https://creativecommons.org/licenses/by-nc/4.0/
