@@ -39,7 +39,7 @@ SynDRA-Gen is designed around a small set of scenario-customization groups.
 - `Outputs`: depth-image generation, semantic-segmentation generation, and bounding-box generation
 - `Forest`: mesh family plus tree, lower-tree, and grass seeds
 - `Pedestrians`: pedestrian seed
-- `Railway`: ballast mesh, terrain mesh, and ballast rotation seed
+- `Railway`: ballast mesh, paired terrain mesh, and ballast rotation seed
 - `Train dynamics`: travel rail and train speed
 - `LiDAR`: none, flash, or beams; beams count; flash preset; mount offsets
 
@@ -56,6 +56,15 @@ For the end user, SynDRA-Gen is intended to work as an application loop:
 7. Return to the configuration menu, change the scenario settings, and start a new acquisition run again.
 
 During a run (not during configuration) it is possible to press ESC to close the application or return to the configuration menu.
+
+## Railway surface pairing
+
+Ballast and surrounding-terrain meshes are intended to be used as predefined pairs.
+
+- The runtime menu uses the ballast index as the driving selection.
+- The terrain index is assigned automatically as `(ballast index + 1) % number_of_meshes`.
+
+This constraint is intentional because unrelated ballast and terrain meshes can create geometric overlap and visual intersection issues around the railway surface.
 
 ## Current outputs
 
