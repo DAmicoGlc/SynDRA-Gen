@@ -4,7 +4,7 @@ SynDRA-Gen is an Unreal Engine 5.4 application for generating synthetic railway-
 
 ## Download
 
-Please download the application package and additional content from MEGA: [https://mega.nz/folder/RXkB2JQL#s_Z2oO9QKNU-y2Wf2EaiCA]
+Please download the application package and additional content from MEGA: [https://mega.nz/folder/kaUUSACa#wCqD9m9TO8piedpioBNOZg]
 
 The MEGA folder contains a directory named `SimulatrixMV`. Before launching the application, place this folder in the same directory as the main launcher executable (`SynDRA-Gen.exe`) that you normally start.
 
